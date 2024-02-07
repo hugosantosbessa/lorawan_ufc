@@ -237,35 +237,7 @@ int16_t getRssi(int8_t snr)
     int16_t rssi;
 
     #ifdef MCCI_LMIC
-
         rssi = LMIC.rssi - RSSI_OFFSET;
-
-    #else
-        int16_t rssiAdjust;
-        #ifdef CFG_sx1276_radio
-            if (LMIC.freq > SX1276_FREQ_LF_MAX)
-            {
-                rssiAdjust = SX1276_RSSI_ADJUST_HF;
-            }
-            else
-            {
-                rssiAdjust = SX1276_RSSI_ADJUST_LF;   
-            }
-        #else
-            // CFG_sx1272_radio    
-            rssiAdjust = SX1272_RSSI_ADJUST;
-        #endif    
-        
-        // Revert modification (applied in lmic/radio.c) to get PacketRssi.
-        int16_t packetRssi = LMIC.rssi + 125 - RSSI_OFFSET;
-        if (snr < 0)
-        {
-            rssi = rssiAdjust + packetRssi + snr;
-        }
-        else
-        {
-            rssi = rssiAdjust + (16 * packetRssi) / 15;
-        }
     #endif
 
     return rssi;
