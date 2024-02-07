@@ -4,11 +4,11 @@
  * 
  *  Function:     Board Support File for TTGO LoRa32 (aka T3) v1.3.
  * 
- *  Copyright:    Copyright (c) 2021 Leonel Lopes Parente
+ *  Copyright:    Copyright (c) 2023 Hugo S. C. Bessa, Francisco Helder C. Santos
  * 
  *  License:      MIT License. See accompanying LICENSE file.
  * 
- *  Author:       Leonel Lopes Parente
+ *  Author:       2023 Hugo S. C. Bessa, Francisco Helder C. Santos
  * 
  *  Description:  This board has onboard USB (provided by onboard USB to serial).
  *                It supports automatic firmware upload and serial over USB. 

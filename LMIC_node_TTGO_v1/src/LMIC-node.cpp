@@ -4,9 +4,8 @@
  * 
  *  Function:      LMIC-node main application file.
  * 
- *  Copyright:     Copyright (c) 2021 Leonel Lopes Parente
- *                 Copyright (c) 2018 Terry Moore, MCCI
- *                 Copyright (c) 2015 Thomas Telkamp and Matthijs Kooijman
+ *  Copyright:     
+ *                 Copyright (c) 2023 Hugo S. C. Bessa, Francisco Helder C. Santos
  *
  *                 Permission is hereby granted, free of charge, to anyone 
  *                 obtaining a copy of this document and accompanying files to do, 
@@ -133,7 +132,6 @@ void display_status(){
 
 #endif
 
-
 const uint8_t payloadBufferLength = 4;    // Adjust to fit max payload length
 static uint8_t mydata[] = "Hello, world!";
 
@@ -169,6 +167,51 @@ uint32_t doWorkIntervalSeconds = DO_WORK_INTERVAL_SECONDS;  // Change value in p
     void os_getDevKey (u1_t* buf) { }
 #endif
 
+String getDR(){
+    byte sf = LMIC.datarate;
+    char v[10];
+    snprintf(v, 10, "SF%d%c", (sf!=6? 12-sf:8), (sf!=6? ' ':'C'));
+    return v;
+}
+
+String getFreq(){
+    byte sf = LMIC.datarate;
+    float freq = ((LMIC.freq) / 1000000.0f);
+    bool impar = (LMIC.freq/100000)%2;
+    unsigned canalkhz = (LMIC.freq-915200000)/200000;
+    if(impar)
+        canalkhz = ((LMIC.freq-915900000)/600000) + 64;
+
+    unsigned int bps = (sf==0? 250 : ( // SF12 / 125 kHz
+        sf==1? 440 : ( // SF11 / 125 kHz
+            sf==2 || sf==8 ? 980 : ( // SF10 / 125 kHz | SF12 / 500 kHz
+                sf==3 || sf==9 ? 1760 : ( //  SF9 / 125 kHz | SF11 / 500 kHz
+                    sf==4? 3125 : ( // SF8 / 125 kHz
+                        sf==5? 5470 : ( // SF7 / 125 kHz
+                            sf==6 || sf==12 ? 1250 : ( // SF8 / 500 kHz
+                                sf==10? 3900 : ( //  SF10 / 500 kHz
+                                    sf==11? 7000 : ( // SF9 / 500 kHz
+                                        21900 //sf==13 // SF7 / 500 kHz
+                                    ) 
+                                ) 
+                            )
+                        )
+                    )
+                )
+            ) 
+        )));
+    char v1[15];
+    if(bps < 1000)
+        snprintf(v1, 15, "%d bps", bps);
+    else {
+        snprintf(v1, 15, "%.2f kbps", ((float)bps/1000.0f));
+        if(v1[1]=='.') v1[1] = ',';
+        else v1[2] = ',';
+    }
+    char v[55];
+    snprintf(v, 55, "%.1f MHz (CH%d) (%d KHz) (DR_SF%d%c) (%s)", freq, canalkhz+1, impar?500:150, (sf!=6? 12-sf:8), (sf!=6? ' ':'C'), v1);
+    return v;
+}
 
 int16_t getSnrTenfold()
 {
@@ -229,29 +272,12 @@ int16_t getRssi(int8_t snr)
 }
 
 
-void printEvent(ostime_t timestamp, 
+void         printEvent(ostime_t timestamp, 
                 const char * const message, 
                 PrintTarget target = PrintTarget::All,
                 bool clearDisplayStatusRow = true,
                 bool eventLabel = false)
-{
-    // #ifdef USE_DISPLAY 
-    //     if (target == PrintTarget::All || target == PrintTarget::Display)
-    //     {
-    //         // display.clearLine(TIME_ROW);
-    //         display.setCursor(COL_0, TIME_ROW);
-    //         display.print(F("Time:"));                 
-    //         display.print(timestamp); 
-    //         //display.clearLine(EVENT_ROW);
-    //         if (clearDisplayStatusRow)
-    //         {
-    //             //display.clearLine(STATUS_ROW);    
-    //         }
-    //         display.setCursor(COL_0, EVENT_ROW);               
-    //         display.print(message);
-    //     }
-    // #endif  
-    
+{   
     #ifdef USE_SERIAL
         // Create padded/indented output without using printf().
         // printf() is not default supported/enabled in each Arduino core. 
@@ -287,18 +313,6 @@ void printEvent(ostime_t timestamp,
 
 void printFrameCounters(PrintTarget target = PrintTarget::All)
 {
-    // #ifdef USE_DISPLAY
-    //     if (target == PrintTarget::Display || target == PrintTarget::All)
-    //     {
-    //         //display.clearLine(FRMCNTRS_ROW);
-    //         display.setCursor(COL_0, FRMCNTRS_ROW);
-    //         display.print(F("Up:"));
-    //         display.print(LMIC.seqnoUp);
-    //         display.print(F(" Dn:"));
-    //         display.print(LMIC.seqnoDn);        
-    //     }
-    // #endif
-
     #ifdef USE_SERIAL
         if (target == PrintTarget::Serial || target == PrintTarget::All)
         {
@@ -359,26 +373,6 @@ void printDownlinkInfo(void)
             fPort = LMIC.frame[LMIC.dataBeg -1];
         }        
 
-        // #ifdef USE_DISPLAY
-        //     //display.clearLine(EVENT_ROW);        
-        //     display.setCursor(COL_0, EVENT_ROW);
-        //     display.print(F("RX P:"));
-        //     display.print(fPort);
-        //     if (dataLength != 0)
-        //     {
-        //         display.print(" Len:");
-        //         display.print(LMIC.dataLen);                       
-        //     }
-        //     //display.clearLine(STATUS_ROW);        
-        //     display.setCursor(COL_0, STATUS_ROW);
-        //     display.print(F("RSSI"));
-        //     display.print(rssi);
-        //     display.print(F(" SNR"));
-        //     display.print(snr);                
-        //     display.print(".");                
-        //     display.print(snrDecimalFraction);                      
-        // #endif
-
         #ifdef USE_SERIAL
             printSpaces(serial, MESSAGE_INDENT);    
             serial.println(F("Downlink received"));
@@ -412,23 +406,6 @@ void printDownlinkInfo(void)
 
 void printHeader(void)
 {
-    // #ifdef USE_DISPLAY
-    //     display.clearDisplay();
-    //     display.setCursor(COL_0, HEADER_ROW);
-    //     display.print(F("LMIC-node"));
-    //     #ifdef ABP_ACTIVATION
-    //         //display.drawString(ABPMODE_COL, HEADER_ROW, "ABP");
-    //     #endif
-    //     #ifdef CLASSIC_LMIC
-    //         display.drawString(CLMICSYMBOL_COL, HEADER_ROW, "*");
-    //     #endif
-    //     //display.drawString(COL_0, DEVICEID_ROW, deviceId);
-    //     display.setCursor(COL_0, INTERVAL_ROW);
-    //     display.print(F("Interval:"));
-    //     display.print(doWorkIntervalSeconds);
-    //     display.print("s");
-    // #endif
-
     #ifdef USE_SERIAL
         serial.println(F("\n\nLMIC-node\n"));
         serial.print(F("Device-id:     "));
@@ -626,7 +603,10 @@ void onEvent(ev_t ev)
 
         case EV_TXSTART:
             setTxIndicatorsOn();
-            printEvent(timestamp, ev);            
+            printEvent(timestamp, ev);
+            #ifdef USE_SERIAL
+            Serial.println(getFreq());    
+            #endif     
             break;               
 
         case EV_JOIN_TXCOMPLETE:
@@ -661,46 +641,23 @@ void onEvent(ev_t ev)
             printEvent(timestamp, ev);
             printFrameCounters();
 
-            if (LMIC.txrxFlags & TXRX_LENERR){
-                _RX_COUNT++;
-                //Serial.println(F("LEN_ERR"));
-            } else {
-                //Serial.println(F("OK"));
-            }
-
             // Check if downlink was received
             if (LMIC.dataLen != 0 || LMIC.dataBeg != 0)
             {
                 uint8_t fPort = 0;
+                _RX_COUNT++;
+                _DW_COUNT++;
                 if (LMIC.txrxFlags & TXRX_PORT)
                 {
-                    fPort = LMIC.frame[LMIC.dataBeg -1];
+                    fPort = LMIC.frame[LMIC.dataBeg-1];
                 }
                 if (LMIC.txrxFlags & TXRX_ACK){
                     //Serial.println(F("========> Recebido ACK"));
-                    _DW_COUNT++;
                 }
                 printDownlinkInfo();
                 processDownlink(timestamp, fPort, LMIC.frame + LMIC.dataBeg, LMIC.dataLen);                
             }
             _TX_REAL++;
-            
-
-            
-            if(LMIC.dataLen) {
-                _RX_COUNT++;
-                // data received in rx slot after tx
-                #ifdef USE_SERIAL
-                    Serial.println(F("========================"));
-                    Serial.printf("RECEBIDO (RX%d):\n", LMIC.txrxFlags & TXRX_DNW1 ? 1 : (LMIC.txrxFlags & TXRX_DNW2 ? 2 : -1));
-                    Serial.write(LMIC.frame+LMIC.dataBeg, LMIC.dataLen);
-                    Serial.println();
-                    for(unsigned i=0; i<LMIC.dataLen; i++){
-                        Serial.printf("%02X ",LMIC.frame[LMIC.dataBeg+i]);
-                    }
-                    Serial.println(F("\n========================"));
-                #endif 
-            }
             break;     
           
         // Below events are printed only.
@@ -834,19 +791,7 @@ void processWork(ostime_t doWorkJobTimeStamp)
 
         uint16_t counterValue = getCounterValue();
         ostime_t timestamp = os_getTime();
-
-        // #ifdef USE_DISPLAY
-        //     // Interval and Counter values are combined on a single row.
-        //     // This allows to keep the 3rd row empty which makes the
-        //     // information better readable on the small display.
-        //     //display.clearLine(INTERVAL_ROW);
-        //     display.setCursor(COL_0, INTERVAL_ROW);
-        //     display.print("I:");
-        //     display.print(doWorkIntervalSeconds);
-        //     display.print("s");        
-        //     display.print(" Ctr:");
-        //     display.print(counterValue);
-        // #endif
+        
         #ifdef USE_SERIAL
             printEvent(timestamp, "Input data collected", PrintTarget::Serial);
             printSpaces(serial, MESSAGE_INDENT);
@@ -864,9 +809,6 @@ void processWork(ostime_t doWorkJobTimeStamp)
             #ifdef USE_SERIAL
                 printEvent(timestamp, "Uplink not scheduled because TxRx pending", PrintTarget::Serial);
             #endif    
-            // #ifdef USE_DISPLAY
-            //     printEvent(timestamp, "UL not scheduled", PrintTarget::Display);
-            // #endif
         }
         else
         {
@@ -878,7 +820,7 @@ void processWork(ostime_t doWorkJobTimeStamp)
             uint8_t payloadLength = 2;
 
             //scheduleUplink(fPort, payloadBuffer, payloadLength);
-            scheduleUplink(1, mydata, sizeof(mydata)-1);
+            scheduleUplink(10, mydata, sizeof(mydata)-1);
         }
     }
 }    
@@ -918,7 +860,7 @@ void setup()
 {
     // boardInit(InitType::Hardware) must be called at start of setup() before anything else.
     bool hardwareInitSucceeded = boardInit(InitType::Hardware);
-
+    delay(1000);
     #ifdef USE_DISPLAY 
         initDisplay();
     #endif
@@ -939,15 +881,10 @@ void setup()
             serial.println(F("Error: hardware init failed."));
             serial.flush();            
         #endif
-        // #ifdef USE_DISPLAY
-        //     // Following mesage shown only if failure was unrelated to I2C.
-        //     display.setCursor(COL_0, FRMCNTRS_ROW);
-        //     display.print(F("HW init failed"));
-        // #endif
         abort();
     }
 
-    initLmic(0, DR_SF12, DefaultABPTxPower);
+    initLmic(0, DR_SF7, DefaultABPTxPower);
 
 //  █ █ █▀▀ █▀▀ █▀▄   █▀▀ █▀█ █▀▄ █▀▀   █▀▄ █▀▀ █▀▀ ▀█▀ █▀█
 //  █ █ ▀▀█ █▀▀ █▀▄   █   █ █ █ █ █▀▀   █▀▄ █▀▀ █ █  █  █ █
@@ -971,8 +908,19 @@ void setup()
 }
 
 
+
+
 void loop() 
 {
     os_runloop_once();
-    display_status();
+    #ifdef USE_DISPLAY
+        _STATUS_DR = getDR();
+        _STATUS_LMIC=(
+        LMIC.opmode&OP_JOINING? F("JOINING"):
+            (LMIC.opmode&OP_TXDATA? F("TRANSMIT"):
+                (LMIC.opmode&OP_POLL? F("SND_MPTY_UP"):
+                    (LMIC.opmode&OP_NEXTCHNL? F("NEXTCHANNL"):
+                        F("OUTRO")))));
+        display_status();
+    #endif
 }
