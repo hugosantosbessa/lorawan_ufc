@@ -50,6 +50,8 @@
  ******************************************************************************/
 
 #include "LMIC-node.h"
+#include <Wire.h>
+#include <CurrentBoard.h>
 
 unsigned long _TX_COUNT = 0;
 unsigned long _TX_REAL = 0;
@@ -67,6 +69,7 @@ unsigned long _TX_REAL_old = _TX_REAL;
 String _STATUS_JOIN_old = _STATUS_JOIN;
 String _STATUS_LMIC_old = _STATUS_LMIC;
 String _STATUS_DR_old = _STATUS_DR;
+
 void display_status(){
     if(
         (_STATUS_LMIC_old == _STATUS_LMIC) &&
@@ -127,9 +130,10 @@ void display_status(){
 
 #endif
 
+CurrentBoard currentBoard;
 const uint8_t payloadBufferLength = 4;    // Adjust to fit max payload length
-static uint8_t mydata[] = "Hello, world!";
-
+uint8_t mydata[256] = "";
+char data[20] = "";
 
 uint8_t payloadBuffer[payloadBufferLength];
 static osjob_t doWorkJob;
@@ -728,7 +732,11 @@ void processWork(ostime_t doWorkJobTimeStamp)
             uint8_t payloadLength = 2;
 
             //scheduleUplink(fPort, payloadBuffer, payloadLength);
-            scheduleUplink(10, mydata, sizeof(mydata)-1);
+            strcpy((char*)mydata, "c|");
+            snprintf(data, sizeof(data), "%f", currentBoard.getElectricalConsumption());
+            strcat((char*)mydata, data);
+            Serial.printf("Mydata: %s\n", mydata);
+            scheduleUplink(10, mydata, 240);
         }
     }
 }    
@@ -757,7 +765,6 @@ void processDownlink(ostime_t txCompleteTimestamp, uint8_t fPort, uint8_t* data,
         printEvent(timestamp, "Counter reset", PrintTarget::All, false);
     }          
 }
-
 
 
 void setup() 
@@ -805,9 +812,8 @@ void setup()
 
 
 
-
 void loop() 
-{
+{   
     os_runloop_once();
     #ifdef USE_DISPLAY
         _STATUS_DR = getDR();
