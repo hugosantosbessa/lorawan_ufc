@@ -18,7 +18,7 @@
  * 
  *  License:       MIT License. See accompanying LICENSE file.
  * 
- *  Author:        Leonel Lopes Parente
+ *  Author:        Hugo S. C. Bessa, Francisco Helder C. Santos
  * 
  *  Description:   To get LMIC-node up and running no changes need to be made
  *                 to any source code. Only configuration is required
@@ -50,8 +50,93 @@
  ******************************************************************************/
 
 #include "LMIC-node.h"
-#include <Wire.h>
-#include <CurrentBoard.h>
+
+/*
+    INITIALIZE STATIC VARIABLES OF CLASS LMICNode
+*/
+uint8_t LMICNode::fPort;
+uint8_t LMICNode::mydata[];
+uint8_t LMICNode::sizeData;
+volatile uint16_t LMICNode::counter_ = 0;
+#ifdef MCCI_LMIC   
+    const char * const LMICNode::lmicEventNames[] = { LMIC_EVENT_NAME_TABLE__INIT };
+    const char * const LMICNode::lmicErrorNames[] = { LMIC_ERROR_NAME__INIT };
+#else
+    const char * const LMICNode::lmicEventNames[] = { LEGACY_LMIC_EVENT_NAME_TABLE__INIT };
+#endif
+
+#if defined(ABP_ACTIVATION) && defined(ABP_DEVICEID)
+    const char LMICNode::deviceId[] = ABP_DEVICEID;
+#elif defined(DEVICEID)
+    const char LMICNode::deviceId[] = DEVICEID;
+#else
+    const char LMICNode::deviceId[] = DEVICEID_DEFAULT;
+#endif
+
+#if defined(USE_SERIAL) || defined(USE_DISPLAY)
+    
+    void LMICNode::printChars(Print& printer, char ch, uint8_t count, bool linefeed)
+    {
+        for (uint8_t i = 0; i < count; ++i)
+        {
+            printer.print(ch);
+        }
+        if (linefeed)
+        {
+            printer.println();
+        }
+    }
+
+
+    void LMICNode::printSpaces(Print& printer, uint8_t count, bool linefeed)
+    {
+        printChars(printer, ' ', count, linefeed);
+    }
+
+
+    void LMICNode::printHex(Print& printer, uint8_t* bytes, size_t length, bool linefeed, char separator)
+    {
+        for (size_t i = 0; i < length; ++i)
+        {
+            if (i > 0 && separator != 0)
+            {
+                printer.print(separator);
+            }
+            if (bytes[i] <= 0x0F)
+            {
+                printer.print('0');
+            }
+            printer.print(bytes[i], HEX);        
+        }
+        if (linefeed)
+        {
+            printer.println();
+        }
+    }
+
+
+    void LMICNode::setTxIndicatorsOn(bool on)
+    {
+        if (on)
+        {
+            #ifdef USE_LED
+                BSF::led.on();
+            #endif
+            #ifdef USE_DISPLAY
+                // displayTxSymbol(true);
+            #endif           
+        }
+        else
+        {
+            #ifdef USE_LED
+                BSF::led.off();
+            #endif
+            #ifdef USE_DISPLAY
+                // displayTxSymbol(false);
+            #endif           
+        }        
+    }
+#endif
 
 unsigned long _TX_COUNT = 0;
 unsigned long _TX_REAL = 0;
@@ -70,7 +155,45 @@ String _STATUS_JOIN_old = _STATUS_JOIN;
 String _STATUS_LMIC_old = _STATUS_LMIC;
 String _STATUS_DR_old = _STATUS_DR;
 
-void display_status(){
+void LMICNode::initDisplay()
+    {
+        // OLED Setup ------------------------------------------------------------------
+        pinMode(OLED_RST, OUTPUT);
+        digitalWrite(OLED_RST, LOW);
+        delay(20);
+        digitalWrite(OLED_RST, HIGH);
+
+        Wire.begin(OLED_SDA, OLED_SCL);
+
+        // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+        if(!BSF::display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS, false, false)) {
+            Serial.println(F("SSD1306 allocation failed"));
+            for(;;); // Don't proceed, loop forever
+        }
+
+        BSF::display.clearDisplay();
+
+        BSF::display.setTextSize(2); // Draw 2X-scale text
+        BSF::display.setTextColor(SSD1306_WHITE);
+        BSF::display.setCursor(0, 0);
+        BSF::display.println(F("LoRa OK"));
+        BSF::display.display();
+
+        BSF::display.setCursor(0, 40);
+        BSF::display.setTextSize(1);
+        BSF::display.println(F("Iniciado. Iniciando job."));
+        BSF::display.display();
+
+}
+
+void LMICNode::displayStatus(){
+    _STATUS_DR = getDR();
+        _STATUS_LMIC=(
+        LMIC.opmode&OP_JOINING? F("JOINING"):
+            (LMIC.opmode&OP_TXDATA? F("TRANSMIT"):
+                (LMIC.opmode&OP_POLL? F("SND_MPTY_UP"):
+                    (LMIC.opmode&OP_NEXTCHNL? F("NEXTCHANNL"):
+                        F("OUTRO")))));
     if(
         (_STATUS_LMIC_old == _STATUS_LMIC) &&
         (_STATUS_JOIN_old == _STATUS_JOIN) &&
@@ -91,84 +214,138 @@ void display_status(){
     _DW_COUNT_old = _DW_COUNT;
     _STATUS_DR_old = _STATUS_DR;
     
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print(F("DEV: "));
-    display.println(ABP_DEVADDR, HEX);
+    BSF::display.clearDisplay();
+    BSF::display.setCursor(0, 0);
+    BSF::display.print(F("DEV: "));
+    BSF::display.println(ABP_DEVADDR, HEX);
 
     // https://github.com/sandeepmistry/arduino-LoRa/pull/291
     u1_t bw = getBw(LMIC.rps);
-    display.setCursor(0, 10);
-    display.print(F("RSSI: "));
-    display.print(LMIC.rssi);
-    display.println("  "+_STATUS_DR);
+    BSF::display.setCursor(0, 10);
+    BSF::display.print(F("RSSI: "));
+    BSF::display.print(LMIC.rssi);
+    BSF::display.println("  "+_STATUS_DR);
 
-    display.setCursor(0, 20);
-    display.print(F("TX(c): "));
-    display.print(_TX_COUNT);
-    display.print(F(" ["));
-    display.print(_TX_REAL);
-    display.println(F("]"));
+    BSF::display.setCursor(0, 20);
+    BSF::display.print(F("TX(c): "));
+    BSF::display.print(_TX_COUNT);
+    BSF::display.print(F(" ["));
+    BSF::display.print(_TX_REAL);
+    BSF::display.println(F("]"));
 
-    display.setCursor(0, 30);
-    display.print(F("RX(c): "));
-    display.print(_RX_COUNT);
+    BSF::display.setCursor(0, 30);
+    BSF::display.print(F("RX(c): "));
+    BSF::display.print(_RX_COUNT);
 
-    display.print(F("  DW(c): "));
-    display.println(_DW_COUNT);
+    BSF::display.print(F("  DW(c): "));
+    BSF::display.println(_DW_COUNT);
 
-    display.setCursor(0, 40);
-    display.print(F("JOIN: "));
-    display.println(_STATUS_JOIN);
+    BSF::display.setCursor(0, 40);
+    BSF::display.print(F("JOIN: "));
+    BSF::display.println(_STATUS_JOIN);
 
-    display.setCursor(0, 50);
-    display.print(F("STATUS: "));
-    display.println(_STATUS_LMIC);
+    BSF::display.setCursor(0, 50);
+    BSF::display.print(F("STATUS: "));
+    BSF::display.println(_STATUS_LMIC);
         
-    display.display();
+    BSF::display.display();
 }
-
 #endif
 
-CurrentBoard currentBoard;
-const uint8_t payloadBufferLength = 4;    // Adjust to fit max payload length
-uint8_t mydata[256] = "";
-char data[20] = "";
+#ifdef USE_SERIAL
+    // HardwareSerial& serial = Serial;
+    bool initSerial(unsigned long speed, int16_t timeoutSeconds)
+    {
+        // Initializes the serial port.
+        // Optionally waits for serial port to be ready.
+        // Will display status and progress on display (if enabled)
+        // which can be useful for tracing (e.g. ATmega328u4) serial port issues.
+        // A negative timeoutSeconds value will wait indefinitely.
+        // A value of 0 (default) will not wait.
+        // Returns: true when serial port ready,
+        //          false when not ready.
 
-uint8_t payloadBuffer[payloadBufferLength];
-static osjob_t doWorkJob;
-uint32_t doWorkIntervalSeconds = DO_WORK_INTERVAL_SECONDS;  // Change value in platformio.ini
+        BSF::serial.begin(speed);
+
+        #if WAITFOR_SERIAL_S != 0
+            if (timeoutSeconds != 0)
+            {   
+                bool indefinite = (timeoutSeconds < 0);
+                uint16_t secondsLeft = timeoutSeconds; 
+                #ifdef USE_DISPLAY
+                    BSF::display.setCursor(0, ROW_1);
+                    BSF::display.print(F("Waiting for"));
+                    BSF::display.setCursor(0,  ROW_2);                
+                    BSF::display.print(F("serial port"));
+                #endif
+
+                while (!BSF::serial && (indefinite || secondsLeft > 0))
+                {
+                    if (!indefinite)
+                    {
+                        #ifdef USE_DISPLAY
+                            BSF::display.clearLine(ROW_4);
+                            BSF::display.setCursor(0, ROW_4);
+                            BSF::display.print(F("timeout in "));
+                            BSF::display.print(secondsLeft);
+                            BSF::display.print('s');
+                        #endif
+                        --secondsLeft;
+                    }
+                    delay(1000);
+                }  
+                #ifdef USE_DISPLAY
+                    BSF::display.setCursor(0, ROW_4);
+                    if (BSF::serial)
+                    {
+                        BSF::display.print(F("Connected"));
+                    }
+                    else
+                    {
+                        BSF::display.print(F("NOT connected"));
+                    }
+                #endif
+            }
+        #endif
+
+        return BSF::serial;
+    }
+#endif
+
+osjob_t  doWorkJob;
 
 // Note: LoRa module pin mappings are defined in the Board Support Files.
 
 // Set LoRaWAN keys defined in lorawan-keys.h.
 #ifdef OTAA_ACTIVATION
-    static const u1_t PROGMEM DEVEUI[8]  = { OTAA_DEVEUI } ;
-    static const u1_t PROGMEM APPEUI[8]  = { OTAA_APPEUI };
-    static const u1_t PROGMEM APPKEY[16] = { OTAA_APPKEY };
+    const u1_t  LMICNode::DEVEUI[8]  PROGMEM = { OTAA_DEVEUI } ;
+    const u1_t  LMICNode::APPEUI[8]  PROGMEM = { OTAA_APPEUI };
+    const u1_t LMICNode:: APPKEY[16] PROGMEM = { OTAA_APPKEY };
     // Below callbacks are used by LMIC for reading above values.
     void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8); }
     void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8); }
     void os_getDevKey (u1_t* buf) { memcpy_P(buf, APPKEY, 16); }    
 #else
     // ABP activation
-    static const u4_t DEVADDR = ABP_DEVADDR ;
-    static const PROGMEM u1_t NWKSKEY[16] = { ABP_NWKSKEY };
-    static const u1_t PROGMEM APPSKEY[16] = { ABP_APPSKEY };
+    const u4_t LMICNode::DEVADDR = ABP_DEVADDR ;
+    const u1_t LMICNode::NWKSKEY[16] PROGMEM = { ABP_NWKSKEY };
+    const u1_t  LMICNode::APPSKEY[16] PROGMEM = { ABP_APPSKEY };
     // Below callbacks are not used be they must be defined.
     void os_getDevEui (u1_t* buf) { }
     void os_getArtEui (u1_t* buf) { }
     void os_getDevKey (u1_t* buf) { }
 #endif
 
-String getDR(){
+
+String LMICNode::getDR(){
     byte sf = LMIC.datarate;
     char v[10];
     snprintf(v, 10, "SF%d%c", (sf!=6? 12-sf:8), (sf!=6? ' ':'C'));
     return v;
 }
 
-String getFreq(){
+
+String LMICNode::getFreq(){
     byte sf = LMIC.datarate;
     float freq = ((LMIC.freq) / 1000000.0f);
     bool impar = (LMIC.freq/100000)%2;
@@ -207,7 +384,8 @@ String getFreq(){
     return v;
 }
 
-int16_t getSnrTenfold()
+
+int16_t LMICNode::getSnrTenfold()
 {
     // Returns ten times the SNR (dB) value of the last received packet.
     // Ten times to prevent the use of float but keep 1 decimal digit accuracy.
@@ -217,7 +395,7 @@ int16_t getSnrTenfold()
 }
 
 
-int16_t getRssi(int8_t snr)
+int16_t LMICNode::getRssi(int8_t snr)
 {
     // Returns correct RSSI (dBm) value of the last received packet.
     // Calculation per SX1276 datasheet rev.7 §5.5.5, SX1272 datasheet rev.4 §5.5.5.
@@ -238,11 +416,11 @@ int16_t getRssi(int8_t snr)
 }
 
 
-void         printEvent(ostime_t timestamp, 
+void    LMICNode::printEvent(ostime_t timestamp, 
                 const char * const message, 
-                PrintTarget target = PrintTarget::All,
-                bool clearDisplayStatusRow = true,
-                bool eventLabel = false)
+                PrintTarget target,
+                bool clearDisplayStatusRow,
+                bool eventLabel)
 {   
     #ifdef USE_SERIAL
         // Create padded/indented output without using printf().
@@ -254,22 +432,22 @@ void         printEvent(ostime_t timestamp,
 
         if (target == PrintTarget::All || target == PrintTarget::Serial)
         {
-            printChars(serial, '0', zerosCount);
-            serial.print(timeString);
-            serial.print(":  ");
+            printChars(BSF::serial, '0', zerosCount);
+            BSF::serial.print(timeString);
+            BSF::serial.print(":  ");
             if (eventLabel)
             {
-                serial.print(F("Event: "));
+                BSF::serial.print(F("Event: "));
             }
-            serial.println(message);
+            BSF::serial.println(message);
         }
     #endif   
 }           
 
-void printEvent(ostime_t timestamp, 
+void LMICNode::printEvent(ostime_t timestamp, 
                 ev_t ev, 
-                PrintTarget target = PrintTarget::All, 
-                bool clearDisplayStatusRow = true)
+                PrintTarget target, 
+                bool clearDisplayStatusRow)
 {
     #if defined(USE_DISPLAY) || defined(USE_SERIAL)
         printEvent(timestamp, lmicEventNames[ev], target, clearDisplayStatusRow, true);
@@ -277,22 +455,22 @@ void printEvent(ostime_t timestamp,
 }
 
 
-void printFrameCounters(PrintTarget target = PrintTarget::All)
+void LMICNode::printFrameCounters(PrintTarget target)
 {
     #ifdef USE_SERIAL
         if (target == PrintTarget::Serial || target == PrintTarget::All)
         {
-            printSpaces(serial, MESSAGE_INDENT);
-            serial.print(F("Up: "));
-            serial.print(LMIC.seqnoUp);
-            serial.print(F(",  Down: "));
-            serial.println(LMIC.seqnoDn);        
+            printSpaces(BSF::serial, MESSAGE_INDENT);
+            BSF::serial.print(F("Up: "));
+            BSF::serial.print(LMIC.seqnoUp);
+            BSF::serial.print(F(",  Down: "));
+            BSF::serial.println(LMIC.seqnoDn);        
         }
     #endif        
 }      
 
 
-void printSessionKeys()
+void LMICNode::printSessionKeys()
 {    
     #if defined(USE_SERIAL) && defined(MCCI_LMIC)
         u4_t networkId = 0;
@@ -302,26 +480,26 @@ void printSessionKeys()
         LMIC_getSessionKeys(&networkId, &deviceAddress, 
                             networkSessionKey, applicationSessionKey);
 
-        printSpaces(serial, MESSAGE_INDENT);    
-        serial.print(F("Network Id: "));
-        serial.println(networkId, DEC);
+        LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);    
+        BSF::serial.print(F("Network Id: "));
+        BSF::serial.println(networkId, DEC);
 
-        printSpaces(serial, MESSAGE_INDENT);    
-        serial.print(F("Device Address: "));
-        serial.println(deviceAddress, HEX);
+        LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);    
+        BSF::serial.print(F("Device Address: "));
+        BSF::serial.println(deviceAddress, HEX);
 
-        printSpaces(serial, MESSAGE_INDENT);    
-        serial.print(F("Application Session Key: "));
-        printHex(serial, applicationSessionKey, 16, true, '-');
+        LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);    
+        BSF::serial.print(F("Application Session Key: "));
+        printHex(BSF::serial, applicationSessionKey, 16, true, '-');
 
-        printSpaces(serial, MESSAGE_INDENT);    
-        serial.print(F("Network Session Key:     "));
-        printHex(serial, networkSessionKey, 16, true, '-');
+        LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);    
+        BSF::serial.print(F("Network Session Key:     "));
+        printHex(BSF::serial, networkSessionKey, 16, true, '-');
     #endif
 }
 
 
-void printDownlinkInfo(void)
+void LMICNode::printDownlinkInfo(void)
 {
     #if defined(USE_SERIAL) || defined(USE_DISPLAY)
 
@@ -340,71 +518,78 @@ void printDownlinkInfo(void)
         }        
 
         #ifdef USE_SERIAL
-            printSpaces(serial, MESSAGE_INDENT);    
-            serial.println(F("Downlink received"));
+            printSpaces(BSF::serial, MESSAGE_INDENT);    
+            BSF::serial.println(F("Downlink received"));
 
-            printSpaces(serial, MESSAGE_INDENT);
-            serial.print(F("RSSI: "));
-            serial.print(rssi);
-            serial.print(F(" dBm,  SNR: "));
-            serial.print(snr);                        
-            serial.print(".");                        
-            serial.print(snrDecimalFraction);                        
-            serial.println(F(" dB"));
+            printSpaces(BSF::serial, MESSAGE_INDENT);
+            BSF::serial.print(F("RSSI: "));
+            BSF::serial.print(rssi);
+            BSF::serial.print(F(" dBm,  SNR: "));
+            BSF::serial.print(snr);                        
+            BSF::serial.print(".");                        
+            BSF::serial.print(snrDecimalFraction);                        
+            BSF::serial.println(F(" dB"));
 
-            printSpaces(serial, MESSAGE_INDENT);    
-            serial.print(F("Port: "));
-            serial.println(fPort);
+            printSpaces(BSF::serial, MESSAGE_INDENT);    
+            BSF::serial.print(F("Port: "));
+            BSF::serial.println(
+                
+            );
    
             if (dataLength != 0)
             {
-                printSpaces(serial, MESSAGE_INDENT);
-                serial.print(F("Length: "));
-                serial.println(LMIC.dataLen);                   
-                printSpaces(serial, MESSAGE_INDENT);    
-                serial.print(F("Data: "));
-                printHex(serial, LMIC.frame+LMIC.dataBeg, LMIC.dataLen, true, ' ');
+                printSpaces(BSF::serial, MESSAGE_INDENT);
+                BSF::serial.print(F("Length: "));
+                BSF::serial.println(LMIC.dataLen);                   
+                printSpaces(BSF::serial, MESSAGE_INDENT);    
+                BSF::serial.print(F("Data: "));
+                printHex(BSF::serial, LMIC.frame+LMIC.dataBeg, LMIC.dataLen, true, ' ');
             }
         #endif
     #endif
 } 
 
 
-void printHeader(void)
+void LMICNode::printHeader(void)
 {
     #ifdef USE_SERIAL
-        serial.println(F("\n\nLMIC-node\n"));
-        serial.print(F("Device-id:     "));
-        serial.println(deviceId);            
-        serial.print(F("LMIC library:  "));
+        BSF::serial.println(F("\n\nLMIC-node\n"));
+        BSF::serial.print(F("Device-id:     "));
+        BSF::serial.println(LMICNode::deviceId);            
+        BSF::serial.print(F("LMIC library:  "));
         #ifdef MCCI_LMIC  
-            serial.println(F("MCCI"));
+            BSF::serial.println(F("MCCI"));
         #else
-            serial.println(F("Classic [Deprecated]")); 
+            BSF::serial.println(F("Classic [Deprecated]")); 
         #endif
-        serial.print(F("Activation:    "));
+        BSF::serial.print(F("Activation:    "));
         #ifdef OTAA_ACTIVATION  
-            serial.println(F("OTAA"));
+            BSF::serial.println(F("OTAA"));
         #else
-            serial.println(F("ABP")); 
+            BSF::serial.println(F("ABP")); 
         #endif
         #if defined(LMIC_DEBUG_LEVEL) && LMIC_DEBUG_LEVEL > 0
-            serial.print(F("LMIC debug:    "));  
-            serial.println(LMIC_DEBUG_LEVEL);
+            BSF::serial.print(F("LMIC debug:    "));  
+            BSF::serial.println(LMIC_DEBUG_LEVEL);
         #endif
-        serial.print(F("Interval:      "));
-        serial.print(doWorkIntervalSeconds);
-        serial.println(F(" seconds"));
+        BSF::serial.print(F("Interval:      "));
+        BSF::serial.print(LMICNode::doWorkIntervalSeconds);
+        BSF::serial.println(F(" seconds"));
         if (activationMode == ActivationMode::OTAA)
         {
-            serial.println();
+            BSF::serial.println();
         }
     #endif
 }     
 
 
+void LMICNode::setADR(bit_t adrEnabled){
+    this->adrEnabled = adrEnabled;
+}
+
+
 #ifdef ABP_ACTIVATION
-    void setAbpParameters(dr_t dataRate = DefaultABPDataRate, s1_t txPower = DefaultABPTxPower) 
+    void LMICNode::setAbpParameters(dr_t dataRate, s1_t txPower) 
     {
         // Set static session parameters. Instead of dynamically establishing a session
         // by joining the network, precomputed session parameters are be provided.
@@ -439,12 +624,17 @@ void printHeader(void)
         // Set data rate and transmit power (note: txpow is possibly ignored by the library)
         LMIC_setDrTxpow(dataRate, txPower);    
     }
+
+    void LMICNode::setDataRate(dr_t abpDataRate){
+        this->abpDataRate = abpDataRate;
+    }
+    
+    void LMICNode::setTxPower(s1_t abpTxPower){
+        this->abpTxPower = abpTxPower;
+    }
 #endif //ABP_ACTIVATION
 
-
-void initLmic(bit_t adrEnabled = 0,
-              dr_t abpDataRate = DefaultABPDataRate, 
-              s1_t abpTxPower = DefaultABPTxPower) 
+void LMICNode::initLmic() 
 {
     // ostime_t timestamp = os_getTime();
 
@@ -486,24 +676,23 @@ void initLmic(bit_t adrEnabled = 0,
         #endif
 
         #ifdef USE_SERIAL
-            serial.print(F("Clock Error:   "));
-            serial.print(LMIC_CLOCK_ERROR_PPM);
-            serial.print(" ppm (");
-            serial.print(clockError);
-            serial.println(")");            
+            BSF::serial.print(F("Clock Error:   "));
+            BSF::serial.print(LMIC_CLOCK_ERROR_PPM);
+            BSF::serial.print(" ppm (");
+            BSF::serial.print(clockError);
+            BSF::serial.println(")");            
         #endif
     #endif
 
     #ifdef MCCI_LMIC
         // Register a custom eventhandler and don't use default onEvent() to enable
         // additional features (e.g. make EV_RXSTART available). User data pointer is omitted.
-        LMIC_registerEventCb(&onLmicEvent, nullptr);
+        LMIC_registerEventCb(&LMICNode::onLmicEvent, nullptr);
     #endif
 }
 
-
 #ifdef MCCI_LMIC 
-void onLmicEvent(void *pUserData, ev_t ev)
+void LMICNode::onLmicEvent(void *pUserData, ev_t ev)
 #else
 void onEvent(ev_t ev) 
 #endif
@@ -523,7 +712,8 @@ void onEvent(ev_t ev)
             setTxIndicatorsOn();
             printEvent(timestamp, ev);
             #ifdef USE_SERIAL
-            Serial.println(getFreq());    
+                printSpaces(BSF::serial, MESSAGE_INDENT);
+                Serial.println(getFreq());    
             #endif     
             break;               
 
@@ -606,14 +796,14 @@ void onEvent(ev_t ev)
 }
 
 
-static void doWorkCallback(osjob_t* job)
+void LMICNode::doWorkCallback(osjob_t* job)
 {
     // Event hander for doWorkJob. Gets called by the LMIC scheduler.
     // The actual work is performed in function processWork() which is called below.
 
     ostime_t timestamp = os_getTime();
     #ifdef USE_SERIAL
-        serial.println();
+        BSF::serial.println();
         printEvent(timestamp, "doWork job started", PrintTarget::Serial);
     #endif    
 
@@ -621,69 +811,11 @@ static void doWorkCallback(osjob_t* job)
     processWork(timestamp);
 
     // This job must explicitly reschedule itself for the next run.
-    ostime_t startAt = timestamp + sec2osticks((int64_t)doWorkIntervalSeconds);
+    ostime_t startAt = timestamp + sec2osticks((int64_t)LMICNode::doWorkIntervalSeconds);
     os_setTimedCallback(&doWorkJob, startAt, doWorkCallback);    
 }
 
-
-lmic_tx_error_t scheduleUplink(uint8_t fPort, uint8_t* data, uint8_t dataLength, bool confirmed = false)
-{
-    // This function is called from the processWork() function to schedule
-    // transmission of an uplink message that was prepared by processWork().
-    // Transmission will be performed at the next possible time
-
-    ostime_t timestamp = os_getTime();
-    printEvent(timestamp, "Packet queued");
-
-    lmic_tx_error_t retval = LMIC_setTxData2(fPort, data, dataLength, confirmed ? 1 : 0);
-    timestamp = os_getTime();
-
-    if (retval == LMIC_ERROR_SUCCESS)
-    {
-        #ifdef CLASSIC_LMIC
-            // For MCCI_LMIC this will be handled in EV_TXSTART        
-            setTxIndicatorsOn();  
-        #endif        
-    }
-    else
-    {
-        String errmsg; 
-        #ifdef USE_SERIAL
-            errmsg = "LMIC Error: ";
-            #ifdef MCCI_LMIC
-                errmsg.concat(lmicErrorNames[abs(retval)]);
-            #else
-                errmsg.concat(retval);
-            #endif
-            printEvent(timestamp, errmsg.c_str(), PrintTarget::Serial);
-        #endif
-        // #ifdef USE_DISPLAY
-            errmsg = "LMIC Err: ";
-            errmsg.concat(retval);
-            printEvent(timestamp, errmsg.c_str(), PrintTarget::Display);
-        // #endif         
-    }
-    return retval;    
-}
-
-static volatile uint16_t counter_ = 0;
-
-uint16_t getCounterValue()
-{
-    // Increments counter and returns the new value.
-    delay(50);         // Fake this takes some time
-    return ++counter_;
-}
-
-void resetCounter()
-{
-    // Reset counter to 0
-    counter_ = 0;
-}
-
-
-void processWork(ostime_t doWorkJobTimeStamp)
-{
+void LMICNode::processWork(ostime_t doWorkJobTimeStamp) {
     // This function is called from the doWorkCallback() 
     // callback function when the doWork job is executed.
 
@@ -701,14 +833,14 @@ void processWork(ostime_t doWorkJobTimeStamp)
         // The counter is increased automatically by getCounterValue()
         // and can be reset with a 'reset counter' command downlink message.
 
-        uint16_t counterValue = getCounterValue();
+        uint16_t counterValue = LMICNode::getCounterValue();
         ostime_t timestamp = os_getTime();
         
         #ifdef USE_SERIAL
             printEvent(timestamp, "Input data collected", PrintTarget::Serial);
-            printSpaces(serial, MESSAGE_INDENT);
-            serial.print(F("COUNTER value: "));
-            serial.println(counterValue);
+            printSpaces(BSF::serial, MESSAGE_INDENT);
+            BSF::serial.print(F("COUNTER value: "));
+            BSF::serial.println(counterValue);
         #endif    
 
         // For simplicity LMIC-node will try to send an uplink
@@ -724,25 +856,70 @@ void processWork(ostime_t doWorkJobTimeStamp)
         }
         else
         {
-            _TX_COUNT++;
             // Prepare uplink payload.
-            uint8_t fPort = 10;
-            payloadBuffer[0] = counterValue >> 8;
-            payloadBuffer[1] = counterValue & 0xFF;
-            uint8_t payloadLength = 2;
-
-            //scheduleUplink(fPort, payloadBuffer, payloadLength);
-            strcpy((char*)mydata, "c|");
-            snprintf(data, sizeof(data), "%f", currentBoard.getElectricalConsumption());
-            strcat((char*)mydata, data);
-            Serial.printf("Mydata: %s\n", mydata);
-            scheduleUplink(10, mydata, strlen((char*)mydata));
+            prepareUplink();
         }
     }
 }    
+
+lmic_tx_error_t LMICNode::scheduleUplink(uint8_t fPort, uint8_t* data, uint8_t dataLength, bool confirmed)
+{
+    // This function is called from the prepareUplink() function to schedule
+    // transmission of an uplink message that was prepared by processWork().
+    // Transmission will be performed at the next possible time
+
+    ostime_t timestamp = os_getTime();
+    printEvent(timestamp, "Packet queued");
+    _TX_COUNT++;
+
+    lmic_tx_error_t retval = LMIC_setTxData2(fPort, data, dataLength, confirmed ? 1 : 0);
+    timestamp = os_getTime();
+
+    if (retval == LMIC_ERROR_SUCCESS)
+    {
+        #ifdef CLASSIC_LMIC
+            // For MCCI_LMIC this will be handled in EV_TXSTART        
+            setTxIndicatorsOn();  
+        #endif        
+    }
+    else
+    {
+        String errmsg; 
+        #ifdef USE_SERIAL
+            errmsg = "LMIC Error: ";
+            #ifdef MCCI_LMIC
+                errmsg.concat(LMICNode::lmicErrorNames[abs(retval)]);
+            #else
+                errmsg.concat(retval);
+            #endif
+            printEvent(timestamp, errmsg.c_str(), PrintTarget::Serial);
+        #endif
+        // #ifdef USE_DISPLAY
+            errmsg = "LMIC Err: ";
+            errmsg.concat(retval);
+            printEvent(timestamp, errmsg.c_str(), PrintTarget::Display);
+        // #endif         
+    }
+    return retval;    
+}
+
+
+uint16_t LMICNode::getCounterValue()
+{
+    // Increments counter and returns the new value.
+    delay(50);         // Fake this takes some time
+    return ++counter_;
+}
+
+void LMICNode::resetCounter()
+{
+    // Reset counter to 0
+    counter_ = 0;
+}
+
  
 
-void processDownlink(ostime_t txCompleteTimestamp, uint8_t fPort, uint8_t* data, uint8_t dataLength)
+void LMICNode::processDownlink(ostime_t txCompleteTimestamp, uint8_t fPort, uint8_t* data, uint8_t dataLength)
 {
     // This function is called from the onEvent() event handler
     // on EV_TXCOMPLETE when a downlink message was received.
@@ -757,8 +934,8 @@ void processDownlink(ostime_t txCompleteTimestamp, uint8_t fPort, uint8_t* data,
     if (fPort == cmdPort && dataLength == 1 && data[0] == resetCmd)
     {
         #ifdef USE_SERIAL
-            printSpaces(serial, MESSAGE_INDENT);
-            serial.println(F("Reset cmd received"));
+            printSpaces(BSF::serial, MESSAGE_INDENT);
+            BSF::serial.println(F("Reset cmd received"));
         #endif
         ostime_t timestamp = os_getTime();
         resetCounter();
@@ -767,11 +944,9 @@ void processDownlink(ostime_t txCompleteTimestamp, uint8_t fPort, uint8_t* data,
 }
 
 
-void setup() 
-{
+void LMICNode::initHardware(){
     // boardInit(InitType::Hardware) must be called at start of setup() before anything else.
-    bool hardwareInitSucceeded = boardInit(InitType::Hardware);
-    delay(1000);
+    bool hardwareInitSucceeded = BSF::boardInit(InitType::Hardware);
     #ifdef USE_DISPLAY 
         initDisplay();
     #endif
@@ -780,8 +955,9 @@ void setup()
         initSerial(MONITOR_SPEED, WAITFOR_SERIAL_S);
     #endif    
 
-    boardInit(InitType::PostInitSerial);
-
+    BSF::boardInit(InitType::PostInitSerial);
+    
+    delay(3000);
     #if defined(USE_SERIAL) || defined(USE_DISPLAY)
         printHeader();
     #endif
@@ -789,13 +965,55 @@ void setup()
     if (!hardwareInitSucceeded)
     {   
         #ifdef USE_SERIAL
-            serial.println(F("Error: hardware init failed."));
-            serial.flush();            
+            BSF::serial.println(F("Error: hardware init failed."));
+            BSF::serial.flush();            
+        #endif
+        abort();
+    }
+}
+
+
+void LMICNode::initTransmission(){
+
+    resetCounter();
+
+    if (activationMode == ActivationMode::OTAA)
+    {
+        LMIC_startJoining();
+    }
+
+    // Schedule initial doWork job for immediate execution.
+    os_setCallback(&doWorkJob, doWorkCallback);
+}
+
+void LMICNode::setup_node(){
+    // boardInit(InitType::Hardware) must be called at start of setup() before anything else.
+    bool hardwareInitSucceeded = BSF::boardInit(InitType::Hardware);
+    #ifdef USE_DISPLAY 
+        initDisplay();
+    #endif
+
+    #ifdef USE_SERIAL
+        initSerial(MONITOR_SPEED, WAITFOR_SERIAL_S);
+    #endif    
+
+    BSF::boardInit(InitType::PostInitSerial);
+    
+    delay(3000);
+    #if defined(USE_SERIAL) || defined(USE_DISPLAY)
+        printHeader();
+    #endif
+
+    if (!hardwareInitSucceeded)
+    {   
+        #ifdef USE_SERIAL
+            BSF::serial.println(F("Error: hardware init failed."));
+            BSF::serial.flush();            
         #endif
         abort();
     }
 
-    initLmic(0, DR_SF7, DefaultABPTxPower);
+    initLmic();
 
     // Place code for initializing sensors etc. here.
 
@@ -810,19 +1028,10 @@ void setup()
     os_setCallback(&doWorkJob, doWorkCallback);
 }
 
-
-
-void loop() 
-{   
+void LMICNode::loop_node() 
+{
     os_runloop_once();
     #ifdef USE_DISPLAY
-        _STATUS_DR = getDR();
-        _STATUS_LMIC=(
-        LMIC.opmode&OP_JOINING? F("JOINING"):
-            (LMIC.opmode&OP_TXDATA? F("TRANSMIT"):
-                (LMIC.opmode&OP_POLL? F("SND_MPTY_UP"):
-                    (LMIC.opmode&OP_NEXTCHNL? F("NEXTCHANNL"):
-                        F("OUTRO")))));
-        display_status();
+        displayStatus();
     #endif
 }
