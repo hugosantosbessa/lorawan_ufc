@@ -23,9 +23,11 @@ void prepareUplink(){
     strcat((char*)LMICNode::mydata, data);
     LMICNode::sizeData = strlen((char*)LMICNode::mydata);
     LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);
-    BSF::serial.printf("Mydata: %s\n", LMICNode::mydata);
+    BSF::serial.print("Mydata: ");
+    BSF::serial.println((char*)LMICNode::mydata);
     LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);
-    BSF::serial.printf("Sizedata: %d\n", LMICNode::sizeData);
+    BSF::serial.print("Sizedata: ");
+    BSF::serial.println(LMICNode::sizeData);
     LMICNode::fPort = 10;
     LMICNode::scheduleUplink(LMICNode::fPort, LMICNode::mydata, LMICNode::sizeData);
 }
@@ -33,7 +35,6 @@ void prepareUplink(){
 //  █ █ █▀▀ █▀▀ █▀▄   █▀▀ █▀█ █▀▄ █▀▀   █▀▀ █▀█ █▀▄
 //  █ █ ▀▀█ █▀▀ █▀▄   █   █ █ █ █ █▀▀   █▀▀ █ █ █ █
 //  ▀▀▀ ▀▀▀ ▀▀▀ ▀ ▀   ▀▀▀ ▀▀▀ ▀▀  ▀▀▀   ▀▀▀ ▀ ▀ ▀▀ 
-
 
 
 void setup() {

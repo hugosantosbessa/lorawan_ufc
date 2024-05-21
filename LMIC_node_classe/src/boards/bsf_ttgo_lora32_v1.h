@@ -8,7 +8,7 @@
  * 
  *  License:      MIT License. See accompanying LICENSE file.
  * 
- *  Author:       2023 Hugo S. C. Bessa, Francisco Helder C. Santos
+ *  Author:       Hugo S. C. Bessa, Francisco Helder C. Santos
  * 
  *  Description:  This board has onboard USB (provided by onboard USB to serial).
  *                It supports automatic firmware upload and serial over USB. 
@@ -72,7 +72,7 @@
  *                    architecture:  ARDUINO_ARCH_ESP32
  * 
  ******************************************************************************/
-
+#ifdef BSF_TTGO_LORA32_V1
 #pragma once
 
 #ifndef BSF_TTGO_LORA32_V1_H_
@@ -95,7 +95,6 @@
 
 
 #ifdef USE_LED
-    // #error Invalid option: USE_LED. This board has no onboard user LED.
     #include <EasyLed.h>
 #endif
 
@@ -130,4 +129,6 @@ public:
 static bool boardInit(InitType initType);
 
 };
+
+#endif
 #endif  // BSF_TTGO_LORA32_V1_H_

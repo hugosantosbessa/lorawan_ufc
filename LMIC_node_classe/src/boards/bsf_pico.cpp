@@ -1,13 +1,12 @@
-#ifdef BSF_TTGO_LORA32_V1
-
-#include "bsf_ttgo_lora32_v1.h"
+#ifdef BSF_PICO
+#include "bsf_pico.h"
 
 // Pin mappings for LoRa tranceiver
 const lmic_pinmap lmic_pins = {
-    .nss = 18,
+    .nss = SS,
     .rxtx = LMIC_UNUSED_PIN,
-    .rst = 14,                      // See remark about LORA_RST above.
-    .dio = { /*dio0*/ 26, /*dio1*/ 33, /*dio2*/ 32 }
+    .rst = 8,
+    .dio = { /*dio0*/ 9, /*dio1*/ 10, /*dio2*/ LMIC_UNUSED_PIN }
 #ifdef MCCI_LMIC
     ,
     .rxtx_rx_active = 0,
@@ -17,15 +16,16 @@ const lmic_pinmap lmic_pins = {
 };
 
 #ifdef USE_SERIAL
-    HardwareSerial& BSF::serial = Serial;
-#endif
+    UART& BSF::serial = SerialUSB;
+#endif    
 
 #ifdef USE_LED
-    EasyLed BSF::led(LED_BUILTIN, EasyLed::ActiveLevel::Low);
+    EasyLed BSF::led(LED_BUILTIN, EasyLed::ActiveLevel::High);
 #endif
 
 #ifdef USE_DISPLAY
-    Adafruit_SSD1306 BSF::display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RST);
+    // Create U8x8 instance for SSD1306 OLED display (no reset) using hardware I2C.
+    U8X8_SSD1306_128X64_NONAME_HW_I2C BSF::display(/*rst*/ U8X8_PIN_NONE, /*scl*/ SCL, /*sda*/ SDA);
 #endif
 
 bool BSF::boardInit(InitType initType)
@@ -41,20 +41,15 @@ bool BSF::boardInit(InitType initType)
     {
         case InitType::Hardware:
             // Note: Serial port and display are not yet initialized and cannot be used use here.
-
-            #ifdef USE_DISPLAY
-                // Initialize I2C Wire object with GPIO pins the display is connected to.
-                // These pins will be remembered and will not change if any library
-                // later calls Wire.begin() without parameters.
-                Wire.begin(4, 15);
-            #endif
+            // No actions required for this board.
             break;
 
         case InitType::PostInitSerial:
             // Note: If enabled Serial port and display are already initialized here.
             // No actions required for this board.
-            break;
+            break;           
     }
     return success;
 }
+
 #endif

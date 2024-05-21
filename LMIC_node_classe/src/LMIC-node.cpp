@@ -532,9 +532,7 @@ void LMICNode::printDownlinkInfo(void)
 
             printSpaces(BSF::serial, MESSAGE_INDENT);    
             BSF::serial.print(F("Port: "));
-            BSF::serial.println(
-                
-            );
+            BSF::serial.println(fPort);
    
             if (dataLength != 0)
             {
