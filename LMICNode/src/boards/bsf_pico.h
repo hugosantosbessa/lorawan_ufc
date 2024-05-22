@@ -79,7 +79,7 @@
 #ifndef BSF_PICO_H_
 #define BSF_PICO_H_
 
-#include "LMIC-node.h"
+#include "LMICNode.h"
 
 #ifndef SDA
     #define SDA PIN_WIRE_SDA

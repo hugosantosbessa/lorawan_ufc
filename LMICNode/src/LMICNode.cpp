@@ -43,13 +43,12 @@
  * 
  *  Dependencies:  External libraries:
  *                 MCCI LoRaWAN LMIC library  https://github.com/mcci-catena/arduino-lmic
- *                 IBM LMIC framework         https://github.com/matthijskooijman/arduino-lmic  
  *                 U8g2                       https://github.com/olikraus/u8g2
  *                 EasyLed                    https://github.com/lnlp/EasyLed
  *
  ******************************************************************************/
 
-#include "LMIC-node.h"
+#include "LMICNode.h"
 
 /*
     INITIALIZE STATIC VARIABLES OF CLASS LMICNode

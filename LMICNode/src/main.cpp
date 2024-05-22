@@ -1,4 +1,4 @@
-#include "LMIC-node.h"
+#include "LMICNode.h"
 
 uint16_t counterValue = 1;
 char data[20] = "";
