@@ -207,7 +207,7 @@ For some boards it may be necessary to change the upload protocol, e.g. for pico
 By default all boards with 32-bit MCU are configured to use the MCCI LoRaWAN LMIC library (MCCI LMIC) because this is the library that should be used. It is the most LoRaWAN compliant LMIC library for Arduino and it is actively maintained.  
 
 
-### 4.5 Board Support Files
+### Board Support Files
 
 Each BSF contains the following settings. Except for DEVICEID_DEFAULT these settings are not enabled for each board. Values shown are examples.
 
