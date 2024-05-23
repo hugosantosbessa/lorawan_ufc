@@ -24,7 +24,7 @@ With this, you can clone this project and use LMICNode.
 
 ## Settings
 
-### 4.1 Board selection
+### Board selection
 
 In platformio.ini the board must be selected. Select only a single board by uncommenting the line with its board-id. Comment the line starting with "\<platformio.ini board selector guard\>". The guard is explicitly added to prevent that PlatformIO will compile LMIC-node for ALL listed boards, when no board is selected.
 
