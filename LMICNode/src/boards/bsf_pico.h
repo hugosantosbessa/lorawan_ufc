@@ -52,10 +52,10 @@
  *
  *                SPI/LoRa module     GPIO
  *                ---                 ----
- *                SCK   <――――――――――>  2    (SCK)      (PIN_SPI_SCK)
- *                MOSI  <――――――――――>  3    (MOSI)     (PIN_SPI_MOSI)
- *                MISO  <――――――――――>  4    (MISO)     (PIN_SPI_MISO)
- *                NSS   <――――――――――>  5    (SS)       (PIN_SPI_SS)
+ *                SCK   <――――――――――>  18    (SCK)      (PIN_SPI_SCK)
+ *                MOSI  <――――――――――>  19    (MOSI)     (PIN_SPI_MOSI)
+ *                MISO  <――――――――――>  16   (MISO)     (PIN_SPI_MISO)
+ *                NSS   <――――――――――>  17   (SS)       (PIN_SPI_SS)
  *                RST   <――――――――――>  8 
  *                DIO0  <――――――――――>  9
  *                DIO1  <――――――――――>  10
