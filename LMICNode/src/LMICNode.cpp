@@ -983,48 +983,6 @@ void LMICNode::initTransmission(){
     os_setCallback(&doWorkJob, doWorkCallback);
 }
 
-void LMICNode::setup_node(){
-    // boardInit(InitType::Hardware) must be called at start of setup() before anything else.
-    bool hardwareInitSucceeded = BSF::boardInit(InitType::Hardware);
-    #ifdef USE_DISPLAY 
-        initDisplay();
-    #endif
-
-    #ifdef USE_SERIAL
-        initSerial(MONITOR_SPEED, WAITFOR_SERIAL_S);
-    #endif    
-
-    BSF::boardInit(InitType::PostInitSerial);
-    
-    delay(3000);
-    #if defined(USE_SERIAL) || defined(USE_DISPLAY)
-        printHeader();
-    #endif
-
-    if (!hardwareInitSucceeded)
-    {   
-        #ifdef USE_SERIAL
-            BSF::serial.println(F("Error: hardware init failed."));
-            BSF::serial.flush();            
-        #endif
-        abort();
-    }
-
-    initLmic();
-
-    // Place code for initializing sensors etc. here.
-
-    resetCounter();
-
-    if (activationMode == ActivationMode::OTAA)
-    {
-        LMIC_startJoining();
-    }
-
-    // Schedule initial doWork job for immediate execution.
-    os_setCallback(&doWorkJob, doWorkCallback);
-}
-
 void LMICNode::loop_node() 
 {
     os_runloop_once();
