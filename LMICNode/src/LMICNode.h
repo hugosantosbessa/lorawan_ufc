@@ -223,7 +223,6 @@ public:
     void initHardware();
     void initLmic();
     void initTransmission();
-    void setup_node();
     void loop_node();
     void setADR(bit_t adrEnabled);
 #ifdef ABP_ACTIVATION
@@ -236,7 +235,7 @@ public:
     static String getFreq();
     static int16_t getSnrTenfold();
     static int16_t getRssi(int8_t snr);
-
+    static bit_t isTxPathBusy(void);
     
     static void printChars(Print& printer, char ch, uint8_t count, bool linefeed = false);
     static void printHex(Print& printer, uint8_t* bytes, size_t length = 1, bool linefeed = false, char separator = 0);
