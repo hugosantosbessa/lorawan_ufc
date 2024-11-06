@@ -1,4 +1,4 @@
-#include "LMICNode.h"
+#include <LMICNode.h>
 
 uint16_t counterValue = 1;
 char data[20] = "";
@@ -42,7 +42,7 @@ void setup() {
 
     // Setting the data rate is optional. 
     // By default, it is set to DR_SF7.
-    node.setDataRate(DR_SF10);
+    node.setDataRate(DR_SF8);
     
     // This function makes the initial configurations of LMIC. 
     // Then, all the configurations you need must be defined beforehand.

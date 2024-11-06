@@ -37,7 +37,7 @@ enum class PrintTarget { All, Serial, Display };
 enum class ActivationMode {OTAA, ABP};
 
 #include BSFILE // Include Board Support File
-#include "../keyfiles/lorawan-keys.h"
+#include "../../keyfiles/lorawan-keys.h"
 
 #ifdef USE_DISPLAY
     #include <Wire.h>
