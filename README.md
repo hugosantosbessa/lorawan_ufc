@@ -1,4 +1,4 @@
-# project LMICNode
+# project LMICNode - LoRaWAN UFC
 
 This repository contains a project that aims to automate the configuration of different end devices associated with SmartUFC's LoRaWAN communication network.
 
