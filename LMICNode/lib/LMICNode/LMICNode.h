@@ -29,8 +29,10 @@
 #define LMIC_NODE_H_
 
 #include <Arduino.h>
+#include <arduino_lmic_hal_boards.h>
 #include "lmic.h"
 #include "hal/hal.h"
+#include "arduino_lmic_hal_configuration.h"
 
 enum class InitType { Hardware, PostInitSerial };
 enum class PrintTarget { All, Serial, Display };

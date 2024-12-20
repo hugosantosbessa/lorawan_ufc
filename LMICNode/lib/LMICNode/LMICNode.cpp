@@ -156,14 +156,6 @@ String _STATUS_DR_old = _STATUS_DR;
 
 void LMICNode::initDisplay()
     {
-        // OLED Setup ------------------------------------------------------------------
-        pinMode(OLED_RST, OUTPUT);
-        digitalWrite(OLED_RST, LOW);
-        delay(20);
-        digitalWrite(OLED_RST, HIGH);
-
-        Wire.begin(OLED_SDA, OLED_SCL);
-
         // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
         if(!BSF::display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS, false, false)) {
             Serial.println(F("SSD1306 allocation failed"));
@@ -636,7 +628,13 @@ void LMICNode::initLmic()
     // ostime_t timestamp = os_getTime();
 
     // Initialize LMIC runtime environment
-    os_init();
+    #ifdef BSF_HELTEC_WIFI_LORA_32_V3
+        const Arduino_LMIC::HalConfiguration_t myConfig;
+        const lmic_pinmap *pPinMap = Arduino_LMIC::GetPinmap_ThisBoard();
+        os_init_ex(pPinMap);
+    #else
+        os_init();
+    #endif
     // Reset MAC state
     LMIC_reset();
 
