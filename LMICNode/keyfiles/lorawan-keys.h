@@ -6,7 +6,6 @@
  *
  *  Copyright:     Copyright (c) 2023 Hugo S. C. Bessa, Francisco Helder C. Santos
  *
- *  Important      ██ DO NOT EDIT THIS EXAMPLE FILE (see instructions below) ██
  * 
  *  Decription:    lorawan-keys.h defines LoRaWAN keys needed by the LMIC library.
  *                 It can contain keys for both OTAA and for ABP activation.
@@ -15,14 +14,11 @@
  *                 It is essential that each key is specified in the correct format.
  *                 lsb: least-significant-byte first, msb: most-significant-byte first.
  * 
- *                 For security reasons all files in the keyfiles folder (except file
- *                 lorawan-keys_example.h) are excluded from the Git(Hub) repository.
+ *                 For security reasons all files in the keyfiles folder 
+ *                 excluded from the Git(Hub) repository.
  *                 Also excluded are all files matching the pattern *lorawan-keys.h.
  *                 This way they cannot be accidentally committed to a public repository.
  * 
- *  Instructions:  1. Copy this file lorawan-keys_example.h to file lorawan-keys.h
- *                    in the same folder (keyfiles).
- *                 2. Place/edit required LoRaWAN keys in the new lorawan-keys.h file.
  *
  ******************************************************************************/
 
