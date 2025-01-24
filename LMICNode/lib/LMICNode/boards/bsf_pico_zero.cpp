@@ -1,12 +1,12 @@
-#ifdef BSF_PICO
-#include "bsf_pico.h"
+#ifdef BSF_PICO_ZERO
+#include "bsf_pico_zero.h"
 
 // Pin mappings for LoRa tranceiver
 const lmic_pinmap lmic_pins = {
     .nss = SS,
     .rxtx = LMIC_UNUSED_PIN,
     .rst = 8,
-    .dio = { /*dio0*/ 9, /*dio1*/ 10, /*dio2*/ LMIC_UNUSED_PIN }
+    .dio = { /*dio0*/ 14, /*dio1*/ 15, /*dio2*/ LMIC_UNUSED_PIN }
 #ifdef MCCI_LMIC
     ,
     .rxtx_rx_active = 0,
@@ -21,8 +21,7 @@ const lmic_pinmap lmic_pins = {
 #endif    
 
 #ifdef USE_LED
-
-    EasyLed BSF::led(LED_BUILTIN, EasyLed::ActiveLevel::High);
+    EasyLed BSF::led(PIN_NEOPIXEL, EasyLed::ActiveLevel::High);
 #endif
 
 #ifdef USE_DISPLAY

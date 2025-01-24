@@ -43,7 +43,6 @@
  * 
  *  Dependencies:  External libraries:
  *                 MCCI LoRaWAN LMIC library  https://github.com/mcci-catena/arduino-lmic
- *                 U8g2                       https://github.com/olikraus/u8g2
  *                 EasyLed                    https://github.com/lnlp/EasyLed
  *
  ******************************************************************************/
@@ -112,9 +111,10 @@ volatile uint16_t LMICNode::counter_ = 0;
             printer.println();
         }
     }
+#endif
 
-
-    void LMICNode::setTxIndicatorsOn(bool on)
+#ifdef USE_LED
+void LMICNode::setTxIndicatorsOn(bool on)
     {
         if (on)
         {
@@ -704,22 +704,28 @@ void onEvent(ev_t ev)
             break;
 
         case EV_TXSTART:
+            #ifdef USE_LED
             setTxIndicatorsOn();
+            #endif
             printEvent(timestamp, ev);
             #ifdef USE_SERIAL
-                printSpaces(BSF::serial, MESSAGE_INDENT);
-                Serial.println(getFreq());    
+            printSpaces(BSF::serial, MESSAGE_INDENT);
+            Serial.println(getFreq());    
             #endif     
             break;               
 
         case EV_JOIN_TXCOMPLETE:
         case EV_TXCANCELED:
+            #ifdef USE_LED
             setTxIndicatorsOn(false);
+            #endif
             printEvent(timestamp, ev);
             break;               
 #endif
         case EV_JOINED:
+            #ifdef USE_LED
             setTxIndicatorsOn(false);
+            #endif
             printEvent(timestamp, ev);
             printSessionKeys();
 
@@ -740,7 +746,9 @@ void onEvent(ev_t ev)
 
         case EV_TXCOMPLETE:
             // Transmit completed, includes waiting for RX windows.
+            #ifdef USE_LED
             setTxIndicatorsOn(false);   
+            #endif
             printEvent(timestamp, ev);
             printFrameCounters();
 

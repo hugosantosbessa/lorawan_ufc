@@ -1,11 +1,11 @@
 /*******************************************************************************
  * 
- *  File:         bsf_pico.h 
+ *  File:         bsf_pico_zero.h 
  * 
  *                Note: This file cannot be called pico.h due to conflict
  *                      with identical named file in Arduino-embed core.
  * 
- *  Function:     Board Support File for Raspberry Pi Pico
+ *  Function:     Board Support File for Waveshare Pico Zero
  *                with external SPI LoRa module.
  * 
  *  Copyright:    Copyright (c) 2023 Hugo S. C. Bessa, Francisco Helder C. Santos
@@ -43,52 +43,52 @@
  * 
  *                Leds                GPIO 
  *                ----                ----      
- *                LED   <――――――――――>  25   (LED_BUILTIN) (PIN_LED)
+ *                LED   <――――――――――>  16   (LED_BUILTIN) (PIN_LED)
  * 
  *                I2C [display]       GPIO  
  *                ---                 ----
- *                SDA   <――――――――――>  6               (PIN_WIRE_SDA)
- *                SCL   <――――――――――>  7               (PIN_WIRE_SCL)
+ *                SDA   <――――――――――>  4               (PIN_WIRE0_SDA)
+ *                SCL   <――――――――――>  5               (PIN_WIRE0_SCL)
  *
  *                SPI/LoRa module     GPIO
  *                ---                 ----
- *                SCK   <――――――――――>  18    (SCK)      (PIN_SPI_SCK)
- *                MOSI  <――――――――――>  19    (MOSI)     (PIN_SPI_MOSI)
- *                MISO  <――――――――――>  16   (MISO)     (PIN_SPI_MISO)
- *                NSS   <――――――――――>  17   (SS)       (PIN_SPI_SS)
+ *                SCK   <――――――――――>  2    (SCK)      (PIN_SPI_SCK)
+ *                MOSI  <――――――――――>  3    (MOSI)     (PIN_SPI_MOSI)
+ *                MISO  <――――――――――>  4    (MISO)     (PIN_SPI_MISO)
+ *                NSS   <――――――――――>  5    (SS)       (PIN_SPI_SS)
  *                RST   <――――――――――>  8 
- *                DIO0  <――――――――――>  9
- *                DIO1  <――――――――――>  10
+ *                DIO0  <――――――――――>  14
+ *                DIO1  <――――――――――>  15
  *                DIO2                -          Not needed for LoRa.
  * 
  *  Docs:         https://docs.platformio.org/en/latest/boards/raspberrypi/pico.html
  *
  *  Identifiers:  LMIC-node
- *                    board:         pico
+ *                    board:         pico-zero
  *                PlatformIO
- *                    board:         pico
+ *                    board:         waveshare_rp2040_zero
  *                    platform:      raspberrypi
  *                Arduino
  *                    board:         
  *                    architecture:  
  * 
  ******************************************************************************/
-#ifdef BSF_PICO
+#ifdef BSF_PICO_ZERO
 #pragma once
 
-#ifndef BSF_PICO_H_
-#define BSF_PICO_H_
+#ifndef BSF_PICO_ZERO_H_
+#define BSF_PICO_ZERO_H_
 
 #include "LMICNode.h"
 
 #ifndef SDA
-    #define SDA PIN_WIRE_SDA
+    #define SDA PIN_WIRE0_SDA
 #endif    
 #ifndef SCL
-    #define SCL PIN_WIRE_SCL
+    #define SCL PIN_WIRE0_SCL
 #endif
 
-#define DEVICEID_DEFAULT "rpi-pico"  // Default deviceid value
+#define DEVICEID_DEFAULT "rpi-pico-zero"  // Default deviceid value
 
 // Wait for Serial
 // Can be useful for boards with MCU with integrated USB support.
@@ -103,6 +103,7 @@
 
 #ifdef USE_LED
     #include <EasyLed.h>
+    #define LED_BUILTIN 16
 #endif
 
 

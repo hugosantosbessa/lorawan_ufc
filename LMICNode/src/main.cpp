@@ -22,12 +22,14 @@ void prepareUplink(){
     snprintf(data, sizeof(data), "%d!", counterValue++);
     strcat((char*)LMICNode::mydata, data);
     LMICNode::sizeData = strlen((char*)LMICNode::mydata);
+    #ifdef USE_SERIAL
     LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);
     BSF::serial.print("Mydata: ");
     BSF::serial.println((char*)LMICNode::mydata);
     LMICNode::printSpaces(BSF::serial, MESSAGE_INDENT);
     BSF::serial.print("Sizedata: ");
     BSF::serial.println(LMICNode::sizeData);
+    #endif
     LMICNode::fPort = 10;
     LMICNode::scheduleUplink(LMICNode::fPort, LMICNode::mydata, LMICNode::sizeData);
 }

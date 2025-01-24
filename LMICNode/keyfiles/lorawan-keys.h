@@ -1,8 +1,8 @@
 /*******************************************************************************
  *
- *  File:          lorawan-keys_example.h
+ *  File:          lorawan-keys.h
  * 
- *  Function:      Example for lorawan-keys.h required by LMIC-node.
+ *  Function:      Lorawan keys required by LMICNode.
  *
  *  Copyright:     Copyright (c) 2023 Hugo S. C. Bessa, Francisco Helder C. Santos
  *
@@ -10,15 +10,6 @@
  *  Decription:    lorawan-keys.h defines LoRaWAN keys needed by the LMIC library.
  *                 It can contain keys for both OTAA and for ABP activation.
  *                 Only the keys for the used activation type need to be specified.
- * 
- *                 It is essential that each key is specified in the correct format.
- *                 lsb: least-significant-byte first, msb: most-significant-byte first.
- * 
- *                 For security reasons all files in the keyfiles folder 
- *                 excluded from the Git(Hub) repository.
- *                 Also excluded are all files matching the pattern *lorawan-keys.h.
- *                 This way they cannot be accidentally committed to a public repository.
- * 
  *
  ******************************************************************************/
 
@@ -51,13 +42,12 @@
 
 // End-device Address (u4_t) in uint32_t format. 
 // Note: The value must start with 0x (current version of TTN Console does not provide this).
-#define ABP_DEVADDR 0x00000000
+#define ABP_DEVADDR 0xFEDCBA98
 
 // Network Session Key (u1_t[16]) in msb format
-#define ABP_NWKSKEY 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+#define ABP_NWKSKEY 0xC3,0x0E,0xBD,0xC5,0xC5,0xF5,0x92,0xFF,0x87,0xBF,0xD7,0xB3,0xF6,0x04,0xB0,0x2E
 
 // Application Session K (u1_t[16]) in msb format
-#define ABP_APPSKEY 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-
+#define ABP_APPSKEY 0xC8,0xD7,0x62,0xA4,0x58,0xF3,0x21,0xF6,0xF9,0x26,0x34,0x20,0x5E,0x72,0x8E,0x6D
 
 #endif  // LORAWAN_KEYS_H_
